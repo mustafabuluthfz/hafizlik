@@ -49,6 +49,16 @@ jobs:
           test -f release_sources/mushaf-v16-patch.zip
           echo "036f38d0a8149aef8014942d58836d934c61150c8184176659a45ce38cd6f202  release_sources/mushaf-v16-patch.zip" | sha256sum -c -
           unzip -oq release_sources/mushaf-v16-patch.zip -d .
+          # Kitap sayfasi gorunumunde Flutter key parametresini kabul et.
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('lib/kuran/kuran_okuma_ekrani.dart')
+          data = p.read_text(encoding='utf-8')
+          old = 'const _SayfaIcerigi({required this.sayfa, required this.onAyetSecildi, this.seciliAyet});'
+          new = 'const _SayfaIcerigi({super.key, required this.sayfa, required this.onAyetSecildi, this.seciliAyet});'
+          assert data.count(old) == 1, 'Beklenen sayfa yapicisi bulunamadi'
+          p.write_text(data.replace(old, new), encoding='utf-8')
+          PY
           rm -f lib/ses/turk_ses_arsivi.dart lib/ses/turk_okuyucular_ekrani.dart
           rm -f test/v12_mushaf_yoldasim_test.dart
           # Hatim ekranindaki kapanis parantezini duzelt (V14 derleme hatasi).
