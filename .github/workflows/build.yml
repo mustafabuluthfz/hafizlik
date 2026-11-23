@@ -55,16 +55,7 @@ jobs:
           sed -i 's/record: \^5\.1\.2/record: ^6.2.1/' pubspec.yaml
           grep -q 'record: ^6.2.1' pubspec.yaml
 
-          # V11 ana ekranında dinamik tema rengi const TextStyle içinde kullanılamaz.
-          python3 <<'PY'
-          from pathlib import Path
-          p = Path('lib/main.dart')
-          text = p.read_text(encoding='utf-8')
-          old = 'style: const TextStyle(\n                    fontSize: 14,\n                    fontWeight: FontWeight.w700,\n                    color: onSurface,'
-          assert old in text, 'Beklenen V11 ana ekran stili bulunamadı'
-          p.write_text(text.replace(old, old.replace('style: const TextStyle(', 'style: TextStyle(')), encoding='utf-8')
-          PY
-
+          # V11 tasariminda renk tanimlari derleme uyumludur.
           test -f tools/android_overlay.py
           echo "Proje hazır ve düzeltmeler uygulandı."
 
