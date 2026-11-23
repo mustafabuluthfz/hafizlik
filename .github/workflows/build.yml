@@ -43,6 +43,17 @@ jobs:
           test -f release_sources/mushaf-v14-dart-fix.zip
           echo "6ff332559bff546b41fd126961f40a875882968b0085327b17a360c8325968b0  release_sources/mushaf-v14-dart-fix.zip" | sha256sum -c -
           unzip -oq release_sources/mushaf-v14-dart-fix.zip -d .
+          # Hatim ekranindaki kapanis parantezini duzelt (V14 derleme hatasi).
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('lib/hatim/hatim_ekrani.dart')
+          data = p.read_text(encoding='utf-8')
+          before = "                child: const Text('Yeni hatime başla'))]))"
+          after = "                child: const Text('Yeni hatime başla'))])))"
+          if data.count(before) != 1:
+              raise SystemExit('V14 hatim kapanis ifadesi bulunamadi')
+          p.write_text(data.replace(before, after), encoding='utf-8')
+          PY
           # Dua kütüphanesinin Arapça font sabiti (V11 yaması).
           sed -i "/import '..\\/ortak\\/tema.dart';/a import '../ortak/mushaf.dart';" lib/dualar/dualar_ekrani.dart
           test -f pubspec.yaml
