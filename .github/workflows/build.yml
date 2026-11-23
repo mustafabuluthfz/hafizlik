@@ -68,18 +68,18 @@ jobs:
           begin = data.index('  Future<void> _dinle(int no) async {')
           end = data.index('  @override\n  Widget build', begin)
           replacement = '''  Future<void> _dinle(int no) async {
-    if (_yukleniyor) return;
-    setState(() { _yukleniyor = true; _calanSure = no; });
-    try {
-      final ayetler = await QuranVeri.tumAyetler();
-      final secilen = ayetler.where((a) => a.sure == no).toList();
-      await _oynatici.cal(secilen, okuyucular[_okuyucu]);
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ses başlatılamadı. İnternet bağlantısını veya okuyucuyu kontrol edin.')));
-    } finally { if (mounted) setState(() => _yukleniyor = false); }
-  }
-
-'''
+              if (_yukleniyor) return;
+              setState(() { _yukleniyor = true; _calanSure = no; });
+              try {
+                final ayetler = await QuranVeri.tumAyetler();
+                final secilen = ayetler.where((a) => a.sure == no).toList();
+                await _oynatici.cal(secilen, okuyucular[_okuyucu]);
+              } catch (_) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ses başlatılamadı. İnternet bağlantısını veya okuyucuyu kontrol edin.')));
+              } finally { if (mounted) setState(() => _yukleniyor = false); }
+            }
+          
+          '''
           p.write_text(data[:begin] + replacement + data[end:], encoding='utf-8')
           PY
           rm -f test/v12_mushaf_yoldasim_test.dart
