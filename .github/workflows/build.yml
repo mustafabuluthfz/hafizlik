@@ -34,7 +34,11 @@ jobs:
             echo "::error::Zip içinde hafizlik_app/pubspec.yaml bulunamadı."
             exit 1
           fi
-          cp -a /tmp/kaynak/hafizlik_app/. .
+                   if [ -f pubspec.yaml ]; then
+            echo "Depodaki proje dosyaları kullanılıyor, zip kopyalanmadı."
+          else
+            cp -a /tmp/kaynak/hafizlik_app/. .
+          fi
           test -f tools/android_overlay.py
           echo "Proje dosyaları hazır."
 
