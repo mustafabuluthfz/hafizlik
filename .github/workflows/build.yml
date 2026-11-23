@@ -18,29 +18,29 @@ jobs:
       - name: Kaynak kodlarını indir
         uses: actions/checkout@v4
 
-      - name: Zip dosyasını aç ve projeyi kök dizine yerleştir
+      - name: Proje dosyalarını hazırla ve uyumluluk düzeltmelerini uygula
         shell: bash
         run: |
           set -euo pipefail
-          ZIP=$(ls hafizlik_app*.zip 2>/dev/null | head -n 1 || true)
-          if [ -z "$ZIP" ]; then
-            echo "::error::Depo kökünde hafizlik_app*.zip dosyası bulunamadı."
-            exit 1
-          fi
-          echo "Zip bulundu: $ZIP"
-          rm -rf /tmp/kaynak
-          unzip -q "$ZIP" -d /tmp/kaynak
-          if [ ! -f /tmp/kaynak/hafizlik_app/pubspec.yaml ]; then
-            echo "::error::Zip içinde hafizlik_app/pubspec.yaml bulunamadı."
-            exit 1
-          fi
-                   if [ -f pubspec.yaml ]; then
-            echo "Depodaki proje dosyaları kullanılıyor, zip kopyalanmadı."
-          else
+
+          # Depoda proje yoksa zip'i aç
+          if [ ! -f pubspec.yaml ]; then
+            ZIP=$(ls hafizlik_app*.zip | head -n 1)
+            rm -rf /tmp/kaynak
+            unzip -q "$ZIP" -d /tmp/kaynak
             cp -a /tmp/kaynak/hafizlik_app/. .
           fi
+
+          # Düzeltme 1: Flutter 3.35 CardTheme -> CardThemeData
+          sed -i 's/cardTheme: CardTheme(/cardTheme: CardThemeData(/' lib/ortak/tema.dart
+          grep -q 'cardTheme: CardThemeData(' lib/ortak/tema.dart
+
+          # Düzeltme 2: speech_to_text 6.x eski Registrar API'sini kullanıyor
+          sed -i 's/speech_to_text: \^6\.6\.0/speech_to_text: ^7.0.0/' pubspec.yaml
+          grep -q 'speech_to_text: ^7.0.0' pubspec.yaml
+
           test -f tools/android_overlay.py
-          echo "Proje dosyaları hazır."
+          echo "Proje hazır ve düzeltmeler uygulandı."
 
       - name: Java 17 kur
         uses: actions/setup-java@v4
@@ -71,7 +71,6 @@ jobs:
 
           DESUGAR = 'com.android.tools:desugar_jdk_libs:2.0.4'
 
-          # 1) AndroidManifest.xml: izinler, uygulama adı, speech <queries>
           manifest = Path('android/app/src/main/AndroidManifest.xml')
           if not manifest.exists():
               raise SystemExit('AndroidManifest.xml bulunamadı')
@@ -89,7 +88,6 @@ jobs:
                   '        </intent>\n    </queries>\n</manifest>')
           manifest.write_text(content, encoding='utf-8')
 
-          # 2) Gradle: core library desugaring (bildirim eklentisi için)
           groovy = Path('android/app/build.gradle')
           kts = Path('android/app/build.gradle.kts')
           if groovy.exists():
