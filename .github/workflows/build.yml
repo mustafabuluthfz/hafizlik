@@ -1,4 +1,4 @@
-name: Hafızlık APK derle
+name: Hafızlık V10 çevrimdışı APK derle
 
 on:
   push:
@@ -10,9 +10,9 @@ permissions:
 
 jobs:
   build-apk:
-    name: Hafızlık APK derle
+    name: Hafızlık V10 APK derle
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Kaynak kodlarını indir
@@ -23,13 +23,22 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Depoda proje yoksa zip'i aç
-          if [ ! -f pubspec.yaml ]; then
-            ZIP=$(ls hafizlik_app*.zip | head -n 1)
-            rm -rf /tmp/kaynak
-            unzip -q "$ZIP" -d /tmp/kaynak
-            cp -a /tmp/kaynak/hafizlik_app/. .
-          fi
+          # Her derlemede V10 kaynak paketini aç. Eski V3 kaynaklarını kullanma.
+          test -f release_sources/hafizlik-v10-no-model.zip
+          echo "ada87980b9acc257c12c061fd447dcbcb0eebbc6779bc30afe59f8f4a6a941be  release_sources/hafizlik-v10-no-model.zip" | sha256sum -c -
+          rm -rf lib assets android_overlay tools licenses test
+          unzip -oq release_sources/hafizlik-v10-no-model.zip -d .
+          test -f pubspec.yaml
+          grep -q '^version: 2.1.0+14$' pubspec.yaml
+          test -f lib/ders/yerel_kuran_tanima.dart
+          echo "Güncel V10 kaynakları açıldı."
+
+          # Model yalnızca APK derlenirken indirilir. APK içinde çevrimdışı çalışır.
+          mkdir -p assets/asr
+          curl --fail --location --retry 5 --retry-delay 5 --connect-timeout 30 --output assets/asr/model.int8.onnx 'https://huggingface.co/Abdou/quran-asr-small/resolve/main/model.int8.onnx'
+          echo "88f9df290d57b8890275d79187b77515aeeb12626a42bc76cbd0f8bfcaff00f0  assets/asr/model.int8.onnx" | sha256sum -c -
+          test -f assets/asr/tokens.txt
+          echo "Kur'an çevrimdışı tanıma modeli doğrulandı."
 
           # Düzeltme 1: Flutter 3.35 CardTheme -> CardThemeData
           sed -i 's/cardTheme: CardTheme(/cardTheme: CardThemeData(/' lib/ortak/tema.dart
@@ -136,7 +145,7 @@ jobs:
       - name: APK dosyasını yayınla
         uses: actions/upload-artifact@v4
         with:
-          name: hafizlik-apk
+          name: hafizlik-v10-offline-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
