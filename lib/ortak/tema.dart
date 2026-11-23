@@ -86,7 +86,7 @@ ThemeData _tema(Brightness parlaklik) {
         color: Colors.white,
       ),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: kart,
       elevation: 0,
       margin: EdgeInsets.zero,
