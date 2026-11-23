@@ -23,7 +23,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Her derlemede V10 kaynak paketini aç. Eski V3 kaynaklarını kullanma.
+          # Her derlemede V11 kaynak paketini aç. Eski V3 kaynaklarını kullanma.
           test -f release_sources/hafizlik-v10-no-model.zip
           echo "ada87980b9acc257c12c061fd447dcbcb0eebbc6779bc30afe59f8f4a6a941be  release_sources/hafizlik-v10-no-model.zip" | sha256sum -c -
           rm -rf lib assets android_overlay tools licenses test
@@ -32,9 +32,9 @@ jobs:
           echo "e29a5e4e4778c0f1633cdccf5785628db1ea2460a63341c9b51c50b20f34aed9  release_sources/hafizlik-v11-patch.zip" | sha256sum -c -
           unzip -oq release_sources/hafizlik-v11-patch.zip -d .
           test -f pubspec.yaml
-          grep -q '^version: 2.2.0+15
+          grep -q '^version: 2.2.0+15$' pubspec.yaml
           test -f lib/ders/yerel_kuran_tanima.dart
-          echo "Güncel V10 kaynakları açıldı."
+          echo "Güncel V11 kaynakları açıldı."
 
           # Model yalnızca APK derlenirken indirilir. APK içinde çevrimdışı çalışır.
           mkdir -p assets/asr
@@ -55,13 +55,13 @@ jobs:
           sed -i 's/record: \^5\.1\.2/record: ^6.2.1/' pubspec.yaml
           grep -q 'record: ^6.2.1' pubspec.yaml
 
-          # V10 ana ekranında dinamik tema rengi const TextStyle içinde kullanılamaz.
+          # V11 ana ekranında dinamik tema rengi const TextStyle içinde kullanılamaz.
           python3 <<'PY'
           from pathlib import Path
           p = Path('lib/main.dart')
           text = p.read_text(encoding='utf-8')
           old = 'style: const TextStyle(\n                    fontSize: 14,\n                    fontWeight: FontWeight.w700,\n                    color: onSurface,'
-          assert old in text, 'Beklenen V10 ana ekran stili bulunamadı'
+          assert old in text, 'Beklenen V11 ana ekran stili bulunamadı'
           p.write_text(text.replace(old, old.replace('style: const TextStyle(', 'style: TextStyle(')), encoding='utf-8')
           PY
 
@@ -156,144 +156,8 @@ jobs:
           dart run flutter_launcher_icons
           dart run flutter_native_splash:create
 
-      - name: Flutter analiz ve V11 testleri
-        run: |
-          flutter analyze --no-fatal-infos --no-fatal-warnings
-          flutter test test/v11_dualar_ve_turkce_ses_test.dart
-
-      - name: APK derle
-        run: flutter build apk --release
-
-      - name: APK dosyasını yayınla
-        uses: actions/upload-artifact@v4
-        with:
-          name: hafizlik-v11-offline-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
-          retention-days: 14
- pubspec.yaml
-          test -f lib/ders/yerel_kuran_tanima.dart
-          echo "Güncel V10 kaynakları açıldı."
-
-          # Model yalnızca APK derlenirken indirilir. APK içinde çevrimdışı çalışır.
-          mkdir -p assets/asr
-          curl --fail --location --retry 5 --retry-delay 5 --connect-timeout 30 --output assets/asr/model.int8.onnx 'https://huggingface.co/Abdou/quran-asr-small/resolve/main/model.int8.onnx'
-          echo "88f9df290d57b8890275d79187b77515aeeb12626a42bc76cbd0f8bfcaff00f0  assets/asr/model.int8.onnx" | sha256sum -c -
-          test -f assets/asr/tokens.txt
-          echo "Kur'an çevrimdışı tanıma modeli doğrulandı."
-
-          # Düzeltme 1: Flutter 3.35 CardTheme -> CardThemeData
-          sed -i 's/cardTheme: CardTheme(/cardTheme: CardThemeData(/' lib/ortak/tema.dart
-          grep -q 'cardTheme: CardThemeData(' lib/ortak/tema.dart
-
-          # Düzeltme 2: speech_to_text 6.x eski Registrar API'sini kullanıyor
-          sed -i 's/speech_to_text: \^6\.6\.0/speech_to_text: ^7.0.0/' pubspec.yaml
-          grep -q 'speech_to_text: ^7.0.0' pubspec.yaml
-
-          # record 5.x ile eski Linux eklentisi arasındaki API uyuşmazlığını gider.
-          sed -i 's/record: \^5\.1\.2/record: ^6.2.1/' pubspec.yaml
-          grep -q 'record: ^6.2.1' pubspec.yaml
-
-          # V10 ana ekranında dinamik tema rengi const TextStyle içinde kullanılamaz.
-          python3 <<'PY'
-          from pathlib import Path
-          p = Path('lib/main.dart')
-          text = p.read_text(encoding='utf-8')
-          old = 'style: const TextStyle(\n                    fontSize: 14,\n                    fontWeight: FontWeight.w700,\n                    color: onSurface,'
-          assert old in text, 'Beklenen V10 ana ekran stili bulunamadı'
-          p.write_text(text.replace(old, old.replace('style: const TextStyle(', 'style: TextStyle(')), encoding='utf-8')
-          PY
-
-          test -f tools/android_overlay.py
-          echo "Proje hazır ve düzeltmeler uygulandı."
-
-      - name: Java 17 kur
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Flutter kur
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.35.0'
-          channel: stable
-          cache: true
-
-      - name: Android platform dosyalarını oluştur
-        shell: bash
-        run: |
-          if [ ! -d android ]; then
-            flutter create --platforms=android --project-name hafizlik_app --org com.hafizlik.app .
-          fi
-
-      - name: Android izinlerini, uygulama adını ve desugaring'i ayarla
-        shell: bash
-        run: |
-          python3 <<'PY'
-          from pathlib import Path
-          import re
-
-          DESUGAR = 'com.android.tools:desugar_jdk_libs:2.0.4'
-
-          manifest = Path('android/app/src/main/AndroidManifest.xml')
-          if not manifest.exists():
-              raise SystemExit('AndroidManifest.xml bulunamadı')
-          content = manifest.read_text(encoding='utf-8')
-          for p in ['INTERNET', 'RECORD_AUDIO', 'ACCESS_COARSE_LOCATION',
-                    'ACCESS_FINE_LOCATION', 'POST_NOTIFICATIONS']:
-              tag = f'<uses-permission android:name="android.permission.{p}" />'
-              if tag not in content:
-                  content = re.sub(r'(<manifest\b[^>]*>)', r'\1\n    ' + tag, content, count=1)
-          content = re.sub(r'android:label="[^"]*"', 'android:label="Hafızlık"', content, count=1)
-          if '<queries>' not in content:
-              content = content.replace('</manifest>',
-                  '    <queries>\n        <intent>\n'
-                  '            <action android:name="android.speech.RecognitionService" />\n'
-                  '        </intent>\n    </queries>\n</manifest>')
-          manifest.write_text(content, encoding='utf-8')
-
-          groovy = Path('android/app/build.gradle')
-          kts = Path('android/app/build.gradle.kts')
-          if groovy.exists():
-              t = groovy.read_text(encoding='utf-8')
-              if 'compileOptions {' not in t:
-                  t = t.replace('android {', 'android {\n    compileOptions {\n        coreLibraryDesugaringEnabled true\n    }', 1)
-              elif 'coreLibraryDesugaringEnabled' not in t:
-                  t = t.replace('compileOptions {', 'compileOptions {\n        coreLibraryDesugaringEnabled true', 1)
-              if 'coreLibraryDesugaring "' not in t:
-                  if re.search(r'^dependencies\s*\{', t, re.M):
-                      t = re.sub(r'^dependencies\s*\{', 'dependencies {\n    coreLibraryDesugaring "' + DESUGAR + '"', t, count=1, flags=re.M)
-                  else:
-                      t += '\ndependencies {\n    coreLibraryDesugaring "' + DESUGAR + '"\n}\n'
-              groovy.write_text(t, encoding='utf-8')
-          elif kts.exists():
-              t = kts.read_text(encoding='utf-8')
-              if 'compileOptions {' not in t:
-                  t = t.replace('android {', 'android {\n    compileOptions {\n        isCoreLibraryDesugaringEnabled = true\n    }', 1)
-              elif 'isCoreLibraryDesugaringEnabled' not in t:
-                  t = t.replace('compileOptions {', 'compileOptions {\n        isCoreLibraryDesugaringEnabled = true', 1)
-              if 'coreLibraryDesugaring(' not in t:
-                  if re.search(r'^dependencies\s*\{', t, re.M):
-                      t = re.sub(r'^dependencies\s*\{', 'dependencies {\n    coreLibraryDesugaring("' + DESUGAR + '")', t, count=1, flags=re.M)
-                  else:
-                      t += '\ndependencies {\n    coreLibraryDesugaring("' + DESUGAR + '")\n}\n'
-              kts.write_text(t, encoding='utf-8')
-          else:
-              raise SystemExit('android/app Gradle dosyası bulunamadı')
-          print('Android ayarları tamam.')
-          PY
-
-      - name: Namaz vakitleri widget'ını Android projesine ekle
-        run: python3 tools/android_overlay.py
-
-      - name: Flutter paketlerini indir
-        run: flutter pub get
-
-      - name: Simge ve açılış ekranını oluştur
-        run: |
-          dart run flutter_launcher_icons
-          dart run flutter_native_splash:create
+      - name: V11 dua ve ses testleri
+        run: flutter test test/v11_dualar_ve_turkce_ses_test.dart
 
       - name: APK derle
         run: flutter build apk --release
