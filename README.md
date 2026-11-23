@@ -1,0 +1,2 @@
+# hafizlik
+Hafızlık Takip Uygulaması
