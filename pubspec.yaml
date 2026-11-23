@@ -1,0 +1,55 @@
+name: hafizlik_app
+description: Hafızlık ve Kur'an uygulaması
+publish_to: "none"
+version: 1.0.0+12
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.2.0
+  speech_to_text: ^6.6.0
+  url_launcher: ^6.2.5
+  geolocator: ^12.0.0
+  flutter_compass: ^0.8.1
+  flutter_local_notifications: ^17.2.2
+  timezone: ^0.9.4
+  just_audio: ^0.9.40
+  path_provider: ^2.1.2
+  http: ^1.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/quran/sayfalar.json
+    - assets/fonts/OFL.txt
+    - assets/icon/icon.png
+  fonts:
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri-Regular.ttf
+        - asset: assets/fonts/Amiri-Bold.ttf
+          weight: 700
+
+# Ana ekran simgesi ve açılış ekranı aynı yeşil marka görselini kullanır.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#2E7D32"
+  adaptive_icon_foreground: "assets/icon/foreground.png"
+
+flutter_native_splash:
+  color: "#FBF6E9"
+  image: assets/icon/icon.png
+  android: true
+  ios: false
