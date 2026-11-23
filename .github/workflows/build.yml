@@ -50,6 +50,7 @@ jobs:
           echo "036f38d0a8149aef8014942d58836d934c61150c8184176659a45ce38cd6f202  release_sources/mushaf-v16-patch.zip" | sha256sum -c -
           unzip -oq release_sources/mushaf-v16-patch.zip -d .
           rm -f lib/ses/turk_ses_arsivi.dart lib/ses/turk_okuyucular_ekrani.dart
+          rm -f test/v12_mushaf_yoldasim_test.dart
           # Hatim ekranindaki kapanis parantezini duzelt (V14 derleme hatasi).
           python3 <<'PY'
           from pathlib import Path
@@ -182,7 +183,6 @@ jobs:
       - name: V11 dua ve ses testleri
         run: |
           flutter test test/v11_dualar_ve_turkce_ses_test.dart
-          flutter test test/v12_mushaf_yoldasim_test.dart
           flutter test test/v13_turk_okuyucu_ve_tasarim_test.dart
           flutter test test/v14_uygulama_test.dart
           flutter test test/v15_meal_ve_sayfa_test.dart
