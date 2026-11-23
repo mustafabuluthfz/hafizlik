@@ -40,6 +40,9 @@ jobs:
           test -f release_sources/mushaf-v14-patch.zip
           echo "319d0d9a20b8054cbfa2b462bf2b08f1124560c991cfd39dde59c6b006c1fdd3  release_sources/mushaf-v14-patch.zip" | sha256sum -c -
           unzip -oq release_sources/mushaf-v14-patch.zip -d .
+          test -f release_sources/mushaf-v14-dart-fix.zip
+          echo "6ff332559bff546b41fd126961f40a875882968b0085327b17a360c8325968b0  release_sources/mushaf-v14-dart-fix.zip" | sha256sum -c -
+          unzip -oq release_sources/mushaf-v14-dart-fix.zip -d .
           # Dua kütüphanesinin Arapça font sabiti (V11 yaması).
           sed -i "/import '..\\/ortak\\/tema.dart';/a import '../ortak/mushaf.dart';" lib/dualar/dualar_ekrani.dart
           test -f pubspec.yaml
