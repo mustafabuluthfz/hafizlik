@@ -1,4 +1,4 @@
-name: Mushaf Yoldaşım V16 çevrimdışı APK derle
+name: Mushaf Yoldaşım V17 çevrimdışı APK derle
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build-apk:
-    name: Mushaf Yoldaşım V16 APK derle
+    name: Mushaf Yoldaşım V17 APK derle
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -49,6 +49,9 @@ jobs:
           test -f release_sources/mushaf-v16-patch.zip
           echo "036f38d0a8149aef8014942d58836d934c61150c8184176659a45ce38cd6f202  release_sources/mushaf-v16-patch.zip" | sha256sum -c -
           unzip -oq release_sources/mushaf-v16-patch.zip -d .
+          test -f release_sources/mushaf-v17-patch.zip
+          echo "24607605275e6a3ba950609ef57682b5722f69a69ac12ef8b5c79aa3cb68c46e  release_sources/mushaf-v17-patch.zip" | sha256sum -c -
+          unzip -oq release_sources/mushaf-v17-patch.zip -d .
           # Kitap sayfasi gorunumunde Flutter key parametresini kabul et.
           python3 <<'PY'
           from pathlib import Path
@@ -97,7 +100,7 @@ jobs:
           # Dua kütüphanesinin Arapça font sabiti (V11 yaması).
           sed -i "/import '..\\/ortak\\/tema.dart';/a import '../ortak/mushaf.dart';" lib/dualar/dualar_ekrani.dart
           test -f pubspec.yaml
-          grep -q '^version: 2.7.0+20$' pubspec.yaml
+          grep -q '^version: 2.8.0+21$' pubspec.yaml
           test -f lib/ders/yerel_kuran_tanima.dart
           echo "Güncel V11 kaynakları açıldı."
 
@@ -222,6 +225,7 @@ jobs:
           flutter test test/karsilastirma_test.dart
           flutter test test/v16_sirali_dinlet_ve_okuyucu_test.dart
           flutter test test/v16_kitap_sayfasi_test.dart
+          flutter test test/v17_tasarim_sayfa_cevirme_test.dart
 
       - name: APK derle
         run: flutter build apk --release
@@ -229,7 +233,7 @@ jobs:
       - name: APK dosyasını yayınla
         uses: actions/upload-artifact@v4
         with:
-          name: mushaf-yoldasim-v16-ci-apk
+          name: mushaf-yoldasim-v17-ci-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
