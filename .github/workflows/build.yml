@@ -52,6 +52,35 @@ jobs:
           test -f release_sources/mushaf-v17-patch.zip
           echo "24607605275e6a3ba950609ef57682b5722f69a69ac12ef8b5c79aa3cb68c46e  release_sources/mushaf-v17-patch.zip" | sha256sum -c -
           unzip -oq release_sources/mushaf-v17-patch.zip -d .
+          # Hatim ekranindaki V17 kaynak duzeltmesi: daha acik koleksiyon-if yapisi.
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('lib/hatim/hatim_ekrani.dart')
+          data = p.read_text(encoding='utf-8')
+          begin = data.index('          if (tamam) Card(child: Padding(')
+          end = data.index('          else if (bugun >= 0', begin)
+          replacement = '''          if (tamam)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  children: [
+                    const Icon(Icons.verified_rounded, size: 25, color: kAltin),
+                    const SizedBox(height: 9),
+                    const Text('Tüm günler tamamlandı!',
+                        style: TextStyle(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 8),
+                    FilledButton(
+                      onPressed: _yeniHatimOnayi,
+                      child: const Text('Yeni hatime başla'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+'''
+          p.write_text(data[:begin] + replacement + data[end:], encoding='utf-8')
+          PY
           # Kitap sayfasi gorunumunde Flutter key parametresini kabul et.
           python3 <<'PY'
           from pathlib import Path
