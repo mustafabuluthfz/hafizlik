@@ -103,9 +103,10 @@ jobs:
           data = p.read_text(encoding='utf-8')
           before = "                child: const Text('Yeni hatime başla'))]))"
           after = "                child: const Text('Yeni hatime başla'))])))"
-          if data.count(before) != 1:
-              raise SystemExit('V14 hatim kapanis ifadesi bulunamadi')
-          p.write_text(data.replace(before, after), encoding='utf-8')
+          if before in data:
+              p.write_text(data.replace(before, after), encoding='utf-8')
+          else:
+              print('Hatim ifadesi V17 duzeninde; eski yama atlandi.')
           PY
           # Dua kütüphanesinin Arapça font sabiti (V11 yaması).
           sed -i "/import '..\\/ortak\\/tema.dart';/a import '../ortak/mushaf.dart';" lib/dualar/dualar_ekrani.dart
