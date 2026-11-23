@@ -48,6 +48,20 @@ jobs:
           sed -i 's/speech_to_text: \^6\.6\.0/speech_to_text: ^7.0.0/' pubspec.yaml
           grep -q 'speech_to_text: ^7.0.0' pubspec.yaml
 
+          # record 5.x ile eski Linux eklentisi arasındaki API uyuşmazlığını gider.
+          sed -i 's/record: \^5\.1\.2/record: ^6.2.1/' pubspec.yaml
+          grep -q 'record: ^6.2.1' pubspec.yaml
+
+          # V10 ana ekranında dinamik tema rengi const TextStyle içinde kullanılamaz.
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('lib/main.dart')
+          text = p.read_text(encoding='utf-8')
+          old = 'style: const TextStyle(\n                    fontSize: 14,\n                    fontWeight: FontWeight.w700,\n                    color: onSurface,'
+          assert old in text, 'Beklenen V10 ana ekran stili bulunamadı'
+          p.write_text(text.replace(old, old.replace('style: const TextStyle(', 'style: TextStyle(')), encoding='utf-8')
+          PY
+
           test -f tools/android_overlay.py
           echo "Proje hazır ve düzeltmeler uygulandı."
 
