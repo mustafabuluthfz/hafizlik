@@ -1,4 +1,4 @@
-name: Mushaf Yoldaşım V18 çevrimdışı APK derle
+name: Mushaf Yoldaşım V19 çevrimdışı APK derle
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build-apk:
-    name: Mushaf Yoldaşım V18 APK derle
+    name: Mushaf Yoldaşım V19 APK derle
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -53,6 +53,7 @@ jobs:
           echo "24607605275e6a3ba950609ef57682b5722f69a69ac12ef8b5c79aa3cb68c46e  release_sources/mushaf-v17-patch.zip" | sha256sum -c -
           unzip -oq release_sources/mushaf-v17-patch.zip -d .
           python3 release_sources/v18_duzeltme.py
+          python3 release_sources/v19_hoca_dinletisi.py
           # V17 Hatim ekrani: koleksiyon-if ifadesini acik widget agaci ile duzelt.
           python3 <<'PY'
           from pathlib import Path
@@ -113,7 +114,7 @@ jobs:
           sed -i "/import '..\\/ortak\\/tema.dart';/a import '../ortak/mushaf.dart';" lib/dualar/dualar_ekrani.dart
           test -f pubspec.yaml
           grep -q '^version: 2.8.0+21$' pubspec.yaml
-          sed -i 's/^version: 2.8.0+21$/version: 2.8.1+22/' pubspec.yaml
+          sed -i 's/^version: 2.8.0+21$/version: 2.8.2+23/' pubspec.yaml
           test -f lib/ders/yerel_kuran_tanima.dart
           echo "Güncel V11 kaynakları açıldı."
 
@@ -239,6 +240,7 @@ jobs:
           flutter test test/v16_sirali_dinlet_ve_okuyucu_test.dart
           flutter test test/v16_kitap_sayfasi_test.dart
           flutter test test/v17_tasarim_sayfa_cevirme_test.dart
+          flutter test test/v19_hoca_dinletisi_test.dart
 
       - name: APK derle
         run: flutter build apk --release
@@ -275,7 +277,7 @@ jobs:
       - name: APK dosyasını yayınla
         uses: actions/upload-artifact@v4
         with:
-          name: mushaf-yoldasim-v18-ci-apk
+          name: mushaf-yoldasim-v19-ci-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
