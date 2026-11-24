@@ -1,4 +1,4 @@
-name: Mushaf Yoldaşım V21 çevrimdışı APK derle
+name: Mushaf Yoldaşım V22 çevrimdışı APK derle
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build-apk:
-    name: Mushaf Yoldaşım V21 APK derle
+    name: Mushaf Yoldaşım V22 APK derle
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -121,7 +121,7 @@ jobs:
           sed -i "/import '..\\/ortak\\/tema.dart';/a import '../ortak/mushaf.dart';" lib/dualar/dualar_ekrani.dart
           test -f pubspec.yaml
           grep -q '^version: 2.8.0+21$' pubspec.yaml
-          sed -i 's/^version: 2.8.0+21$/version: 2.8.4+25/' pubspec.yaml
+          sed -i 's/^version: 2.8.0+21$/version: 2.8.5+26/' pubspec.yaml
           test -f lib/ders/yerel_kuran_tanima.dart
           echo "Güncel V11 kaynakları açıldı."
 
@@ -302,7 +302,7 @@ jobs:
         if: ${{ failure() && steps.sign_apk.outcome == 'failure' }}
         uses: actions/upload-artifact@v4
         with:
-          name: mushaf-yoldasim-v21-local-signing-input-NOT-FOR-INSTALL
+          name: mushaf-yoldasim-v22-local-signing-input-NOT-FOR-INSTALL
           path: ${{ runner.temp }}/mushaf-local-sign/
           if-no-files-found: error
           retention-days: 3
@@ -310,7 +310,7 @@ jobs:
       - name: APK dosyasını yayınla
         uses: actions/upload-artifact@v4
         with:
-          name: mushaf-yoldasim-v21-ci-apk
+          name: mushaf-yoldasim-v22-ci-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14

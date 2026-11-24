@@ -10,6 +10,8 @@ import '../ortak/mushaf.dart';
 import 'ders_ekrani.dart';
 import 'fonem_motoru/engine/recitation.dart';
 import 'fonem_motoru/engine/recitation_session.dart';
+import 'fonem_motoru/engine/quran_reference.dart';
+import 'fonem_motoru/engine/tasmee_error_kind.dart';
 import 'fonem_motoru/engine/models/recitation_result.dart';
 import 'fonem_motoru/core/services/tasmee_reference_store.dart';
 
@@ -70,6 +72,11 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
   RecitationResult? _result;
   int _v = -1, _w = -1;
   Timer? _takipZamanlayici;
+  QuranReferenceRange? _range;
+  final _canli = <(int, int), TasmeeErrorKind>{};
+  final _canliHata = <(int, int), TasmeeWordMistake>{};
+  final _sonHata = <(int, int), List<RecitationError>>{};
+  final _eslesen = <(int, int)>{};
 
   @override
   void initState() {
@@ -111,7 +118,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
 
   Future<void> _baslat() async {
     if (_busy || _recording || _ayetler.isEmpty) return;
-    setState(() { _busy = true; _hata = null; _result = null; _v = -1; _w = -1; });
+    setState(() { _busy = true; _hata = null; _result = null; _range = null; _canli.clear(); _canliHata.clear(); _sonHata.clear(); _eslesen.clear(); _v = -1; _w = -1; });
     try {
       await _motorHazirla();
       if (!mounted) return;
@@ -122,6 +129,20 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
       _session?.dispose();
       final session = Recitation.createSession(range: range);
       _session = session;
+      setState(() => _range = range);
+      session.onWordDone = (v, w, kind, mistake) {
+        if (!mounted || _session != session || !_recording) return;
+        if (v < 0 || v >= range.verses.length || w < 0 ||
+            w >= range.verses[v].uthmaniWords.length) return;
+        setState(() {
+          _canli[(v, w)] = kind;
+          if (mistake == null) {
+            _canliHata.remove((v, w));
+          } else {
+            _canliHata[(v, w)] = mistake;
+          }
+        });
+      };
       await session.startLive();
       if (!mounted) return;
       if (!session.isLive.value) {
@@ -154,6 +175,23 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
       final sonuc = session.result.value;
       setState(() {
         _result = sonuc;
+        _eslesen.clear();
+        _sonHata.clear();
+        if (sonuc != null && sonuc.hasMatch && _range != null) {
+          for (final span in sonuc.matchedWordSpans) {
+            _eslesen.add((span.verseIdx, span.wordIdx));
+          }
+          for (final e in sonuc.errors) {
+            if (e.isWordRepeat || e.wordIdx == null) continue;
+            final v = _range!.verses.indexWhere(
+              (a) => a.verseKey == '${e.suraIdx}:${e.ayaIdx}');
+            final w = e.wordIdx!;
+            if (v < 0 || w < 0 || w >= _range!.verses[v].uthmaniWords.length) continue;
+            (_sonHata[(v, w)] ??= []).add(e);
+          }
+        }
+        _canli.clear();
+        _canliHata.clear();
         if (sonuc == null || !sonuc.hasMatch) {
           _hata = 'Okuma güvenilir biçimde eşleştirilemedi. Sessiz bir ortamda yeniden deneyin.';
         }
@@ -171,6 +209,159 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
     _session?.dispose();
     Recitation.reset();
     super.dispose();
+  }
+
+
+  TasmeeErrorKind? _kelimeDurumu(int v, int w) {
+    final key = (v, w);
+    if (_result == null) return _canli[key];
+    final errors = _sonHata[key];
+    if (errors != null && errors.isNotEmpty) {
+      if (errors.any((e) => e.errorType == 'normal')) return TasmeeErrorKind.normal;
+      if (errors.any((e) => e.errorType == 'tashkeel')) return TasmeeErrorKind.tashkeel;
+      return TasmeeErrorKind.tajweed;
+    }
+    return _eslesen.contains(key) ? TasmeeErrorKind.correct : null;
+  }
+
+  Color _renk(TasmeeErrorKind? kind) => switch (kind) {
+    TasmeeErrorKind.correct => const Color(0xFF15803D),
+    TasmeeErrorKind.normal => const Color(0xFFB91C1C),
+    TasmeeErrorKind.tashkeel => const Color(0xFFC2410C),
+    TasmeeErrorKind.tajweed => const Color(0xFF7E22CE),
+    null => Theme.of(context).colorScheme.onSurface,
+  };
+
+  String _durumAdi(TasmeeErrorKind? kind) => switch (kind) {
+    TasmeeErrorKind.correct => 'Eşleşti',
+    TasmeeErrorKind.normal => 'Harf / kelime farkı',
+    TasmeeErrorKind.tashkeel => 'Hareke farkı',
+    TasmeeErrorKind.tajweed => 'Tecvid / şedde farkı',
+    null => 'Henüz değerlendirilmedi',
+  };
+
+  Widget _renkliMushaf() {
+    final range = _range!;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      const SizedBox(height: 10),
+      Wrap(spacing: 12, runSpacing: 6, children: [
+        for (final kind in TasmeeErrorKind.values)
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.circle, size: 11, color: _renk(kind)),
+            const SizedBox(width: 5),
+            Text(_durumAdi(kind), style: const TextStyle(fontSize: 12)),
+          ]),
+      ]),
+      const SizedBox(height: 6),
+      const Text('Ayrıntıları görmek için renkli kelimeye dokunun. Canlı sonuçlar ders bitince güncellenir.'),
+      const SizedBox(height: 8),
+      Card(child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          for (var v = 0; v < range.verses.length; v++)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Wrap(
+                textDirection: TextDirection.rtl,
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 5, runSpacing: 6,
+                children: [
+                  for (var w = 0; w < range.verses[v].uthmaniWords.length; w++)
+                    _renkliKelime(v, w, range.verses[v].uthmaniWords[w]),
+                  Text('۞ ${range.keyOfVerse(v).ayaIdx}',
+                    textDirection: TextDirection.rtl,
+                    style: const TextStyle(fontSize: 16)),
+                ],
+              ),
+            ),
+        ]),
+      )),
+    ]);
+  }
+
+  Widget _renkliKelime(int v, int w, String word) {
+    final kind = _kelimeDurumu(v, w);
+    final color = _renk(kind);
+    final active = _recording && v == _v && w == _w;
+    return Semantics(
+      button: kind != null,
+      label: '$word, ${_durumAdi(kind)}',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: kind == null ? null : () => _kelimeAyrinti(v, w, word),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+          decoration: BoxDecoration(
+            color: kind == null ? null : color.withValues(alpha: .10),
+            borderRadius: BorderRadius.circular(6),
+            border: active ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2) : null,
+          ),
+          child: Text(word, textDirection: TextDirection.rtl,
+            style: TextStyle(fontFamily: kMushafFontu, fontSize: 27,
+              height: 1.8, color: color)),
+        ),
+      ),
+    );
+  }
+
+  void _kelimeAyrinti(int v, int w, String word) {
+    final kind = _kelimeDurumu(v, w);
+    if (kind == null) return;
+    final key = _range!.keyOfVerse(v);
+    final errors = List<RecitationError>.of(_sonHata[(v, w)] ?? []);
+    final live = _canliHata[(v, w)];
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * .65),
+            child: SingleChildScrollView(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_durumAdi(kind), style: TextStyle(fontSize: 20,
+                  fontWeight: FontWeight.bold, color: _renk(kind))),
+                Text('Sûre ${key.suraIdx} · Ayet ${key.ayaIdx} · ${w + 1}. kelime'),
+                const SizedBox(height: 12),
+                Text(word, textDirection: TextDirection.rtl, textAlign: TextAlign.center,
+                  style: const TextStyle(fontFamily: kMushafFontu, fontSize: 36)),
+                const SizedBox(height: 12),
+                if (kind == TasmeeErrorKind.correct)
+                  const Text('Model bu kelimede belirgin bir fark bulmadı.'),
+                for (final e in errors) ...[
+                  Text(fonemHataAdi(e), style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text('Beklenen ses: ${e.expectedPh ?? "—"}'),
+                  Text('Algılanan ses: ${e.predictedPh ?? "—"}'),
+                  if (e.errorType == 'tashkeel')
+                    Text('Beklenen: ${fonemHarekeAdi(e.expectedPh)}\nAlgılanan: ${fonemHarekeAdi(e.predictedPh)}'),
+                  if (e.expectedLen != null && e.predictedLen != null)
+                    Text('Uzatma: beklenen ${e.expectedLen}, algılanan ${e.predictedLen} hareke.'),
+                  const Divider(),
+                ],
+                if (errors.isEmpty && live != null) ...[
+                  Text('Beklenen ses: ${live.expectedSymbol ?? "—"}'),
+                  Text('Algılanan ses: ${live.predictedSymbol ?? "—"}'),
+                  if (kind == TasmeeErrorKind.tashkeel)
+                    Text('Beklenen: ${fonemHarekeAdi(live.expectedSymbol)}\nAlgılanan: ${fonemHarekeAdi(live.predictedSymbol)}'),
+                  const Text('Canlı tahmin; ders sonunda kesinleşmeden önce değişebilir.'),
+                ],
+                if (kind != TasmeeErrorKind.correct && errors.isEmpty && live == null)
+                  const Text('Model bir farklılık algıladı ancak ayrıntılı ses bilgisi vermedi.'),
+                const SizedBox(height: 10),
+                const Text('Bu otomatik analizdir; hatalar olası farklılıkları gösterir. Bir Kur’an hocasıyla doğrulayabilirsiniz.', style: TextStyle(fontSize: 12)),
+                const SizedBox(height: 10),
+                FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('Kapat')),
+              ],
+            )),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _sonucGoster(RecitationResult r) {
@@ -240,7 +431,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
                       DropdownMenuItem(value: i, child: Text('Sûre ${_ayetler[i].sure}, ayet ${_ayetler[i].numara}')),
                   ],
                   onChanged: _busy || _recording ? null : (i) {
-                    if (i != null) setState(() { _secili = i; _result = null; _hata = null; });
+                    if (i != null) setState(() { _secili = i; _result = null; _range = null; _canli.clear(); _canliHata.clear(); _sonHata.clear(); _eslesen.clear(); _hata = null; });
                   },
                 ),
               const SizedBox(height: 12),
@@ -255,7 +446,9 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
                   Text('Takip: Sûre ${_hedef[_v].sure}, ayet ${_hedef[_v].numara} · Kelime ${_w + 1}'),
               ],
               if (_hata != null) Text(_hata!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-              if (!_recording && _ayetler.isNotEmpty)
+              if (_range != null)
+                _renkliMushaf(),
+              if (_range == null && !_recording && _ayetler.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: MushafSayfaGorunumu(ayetler: _hedef),
