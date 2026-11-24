@@ -66,6 +66,11 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
   int _secili = -1;
   bool _busy = false;
   bool _recording = false;
+  bool _ezberModu = true;
+
+  // Hide during preparation, recording and final analysis. Never hide the
+  // completed review, even when the memorization option stays enabled.
+  bool get _metinGizli => _ezberModu && (_recording || _busy);
   bool _engineReady = false;
   String? _hata;
   RecitationSession? _session;
@@ -239,6 +244,27 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
     TasmeeErrorKind.tajweed => 'Tecvid / şedde farkı',
     null => 'Henüz değerlendirilmedi',
   };
+
+  Widget _ezberPaneli() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+        child: Column(
+          children: [
+            Icon(Icons.visibility_off_outlined, size: 56,
+              color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 14),
+            Text('EZBER MODU', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(_recording
+              ? 'Sayfa gizlendi. Ezberden okuyun. Dersi bitirdiğinizde renkli sonuçlar açılacak.'
+              : 'Sayfa gizli. İşlem tamamlandığında sonuçlar gösterilecek.',
+              textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _renkliMushaf() {
     final range = _range!;
@@ -434,6 +460,18 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
                     if (i != null) setState(() { _secili = i; _result = null; _range = null; _canli.clear(); _canliHata.clear(); _sonHata.clear(); _eslesen.clear(); _hata = null; });
                   },
                 ),
+              const SizedBox(height: 8),
+              if (_ayetler.isNotEmpty)
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  secondary: Icon(_ezberModu ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                  title: const Text('Ezber modu · Sayfayı gizle'),
+                  subtitle: Text(_ezberModu
+                    ? 'Okurken metin gizlenir, ders sonunda açılır.'
+                    : 'Okurken renkli kelime takibi gösterilir.'),
+                  value: _ezberModu,
+                  onChanged: _busy || _recording ? null : (v) => setState(() => _ezberModu = v),
+                ),
               const SizedBox(height: 12),
               if (_busy) ...[
                 const LinearProgressIndicator(),
@@ -441,19 +479,21 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
                 const Text('Model hazırlanıyor veya ses değerlendiriliyor…'),
               ],
               if (_recording) ...[
-                const Text('Ezberden okuyun. Ders kaydediliyor.'),
+                Text(_ezberModu ? 'Ezberden okuyun. Ders kaydediliyor.' : 'Okuyun. Ders kaydediliyor.'),
                 if (_v >= 0 && _v < _hedef.length)
                   Text('Takip: Sûre ${_hedef[_v].sure}, ayet ${_hedef[_v].numara} · Kelime ${_w + 1}'),
               ],
               if (_hata != null) Text(_hata!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-              if (_range != null)
-                _renkliMushaf(),
-              if (_range == null && !_recording && _ayetler.isNotEmpty)
+              if (_metinGizli)
+                _ezberPaneli()
+              else if (_range != null)
+                _renkliMushaf()
+              else if (!_recording && _ayetler.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: MushafSayfaGorunumu(ayetler: _hedef),
                 ),
-              if (_result != null && _result!.hasMatch) _sonucGoster(_result!),
+              if (!_metinGizli && _result != null && _result!.hasMatch) _sonucGoster(_result!),
               const SizedBox(height: 12),
               if (!_busy && !_recording)
                 OutlinedButton(
