@@ -1,4 +1,4 @@
-name: Mushaf Yoldaşım V20 çevrimdışı APK derle
+name: Mushaf Yoldaşım V21 çevrimdışı APK derle
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build-apk:
-    name: Mushaf Yoldaşım V20 APK derle
+    name: Mushaf Yoldaşım V21 APK derle
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -55,6 +55,12 @@ jobs:
           python3 release_sources/v18_duzeltme.py
           python3 release_sources/v19_hoca_dinletisi.py
           python3 release_sources/v20_ders_dinlet.py
+          # Pin the offline phoneme engine source; bundle only its reference data and model.
+          git clone --filter=blob:none --no-checkout https://github.com/alheekmahlib/quran_library.git release_sources/quran_library_upstream
+          git -C release_sources/quran_library_upstream checkout bf9d0105b530a1e997e99a5892f3df0091952f3d -- lib/src/tasmee/engine lib/src/tasmee/core/services/tasmee_reference_store.dart assets/quran_lab LICENSE NOTICE
+          python3 release_sources/v21_fonem_ders.py
+          curl --fail --location --retry 3 --output assets/quran_lab/zipformer_p_arabic_v3.1.int8.onnx https://github.com/alheekmahlib/quran_audio/releases/download/zipformer-model-v1/zipformer_p_arabic_v3.1.int8.onnx
+          echo "31755836528da336a6192121cd7bc82cb41752dddb65566fd000b89c8686da6b  assets/quran_lab/zipformer_p_arabic_v3.1.int8.onnx" | sha256sum -c -
           # V17 Hatim ekrani: koleksiyon-if ifadesini acik widget agaci ile duzelt.
           python3 <<'PY'
           from pathlib import Path
@@ -115,7 +121,7 @@ jobs:
           sed -i "/import '..\\/ortak\\/tema.dart';/a import '../ortak/mushaf.dart';" lib/dualar/dualar_ekrani.dart
           test -f pubspec.yaml
           grep -q '^version: 2.8.0+21$' pubspec.yaml
-          sed -i 's/^version: 2.8.0+21$/version: 2.8.3+24/' pubspec.yaml
+          sed -i 's/^version: 2.8.0+21$/version: 2.8.4+25/' pubspec.yaml
           test -f lib/ders/yerel_kuran_tanima.dart
           echo "Güncel V11 kaynakları açıldı."
 
@@ -279,7 +285,7 @@ jobs:
       - name: APK dosyasını yayınla
         uses: actions/upload-artifact@v4
         with:
-          name: mushaf-yoldasim-v20-ci-apk
+          name: mushaf-yoldasim-v21-ci-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
