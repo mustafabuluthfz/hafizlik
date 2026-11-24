@@ -243,6 +243,35 @@ jobs:
       - name: APK derle
         run: flutter build apk --release
 
+      - name: Kalıcı uygulama anahtarı ile APK imzala ve doğrula
+        shell: bash
+        env:
+          MUSHAF_KEYSTORE_BASE64: ${{ secrets.MUSHAF_KEYSTORE_BASE64 }}
+          MUSHAF_KEYSTORE_PASSWORD: ${{ secrets.MUSHAF_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          if [[ -z "$MUSHAF_KEYSTORE_BASE64" || -z "$MUSHAF_KEYSTORE_PASSWORD" ]]; then
+            echo "::error::Kalıcı imzalama için MUSHAF_KEYSTORE_BASE64 ve MUSHAF_KEYSTORE_PASSWORD Actions secrets tanımlanmalıdır."
+            exit 1
+          fi
+          KEYSTORE="$(mktemp)"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          printf '%s' "$MUSHAF_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          unset MUSHAF_KEYSTORE_BASE64
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:?Android SDK bulunamadı}}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          SIGNED=build/app/outputs/flutter-apk/app-release-signed.apk
+          "$APKSIGNER" sign --ks "$KEYSTORE" --ks-key-alias mushaf-upload \
+            --ks-pass env:MUSHAF_KEYSTORE_PASSWORD --key-pass env:MUSHAF_KEYSTORE_PASSWORD \
+            --v1-signing-enabled false --v2-signing-enabled true \
+            --out "$SIGNED" "$APK"
+          "$APKSIGNER" verify --verbose --print-certs "$SIGNED" | tee "$RUNNER_TEMP/mushaf-signature.txt"
+          grep -Fqi '3712f0d441816e23cfdd06b5a5fd09e9c79c8f7fea580ebf61bf1ca62c68c8e1' "$RUNNER_TEMP/mushaf-signature.txt"
+          mv "$SIGNED" "$APK"
+
       - name: APK dosyasını yayınla
         uses: actions/upload-artifact@v4
         with:
