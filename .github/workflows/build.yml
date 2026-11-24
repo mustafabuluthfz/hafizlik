@@ -254,6 +254,7 @@ jobs:
         run: flutter build apk --release
 
       - name: Kalıcı uygulama anahtarı ile APK imzala ve doğrula
+        id: sign_apk
         shell: bash
         env:
           MUSHAF_KEYSTORE_BASE64: ${{ secrets.MUSHAF_KEYSTORE_BASE64 }}
@@ -281,6 +282,30 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$SIGNED" | tee "$RUNNER_TEMP/mushaf-signature.txt"
           grep -Fqi '3712f0d441816e23cfdd06b5a5fd09e9c79c8f7fea580ebf61bf1ca62c68c8e1' "$RUNNER_TEMP/mushaf-signature.txt"
           mv "$SIGNED" "$APK"
+
+      # Keep the release gate intact. If repository secrets are absent,
+      # retain a clearly distinguished input for private local signing only.
+      - name: Yerel imzalama için derleme çıktısını hazırla
+        if: ${{ failure() && steps.sign_apk.outcome == 'failure' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:?Android SDK bulunamadı}}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          mkdir -p "$RUNNER_TEMP/mushaf-local-sign"
+          cp build/app/outputs/flutter-apk/app-release.apk "$RUNNER_TEMP/mushaf-local-sign/NOT-FOR-INSTALL.apk"
+          cp "$(dirname "$APKSIGNER")/lib/apksigner.jar" "$RUNNER_TEMP/mushaf-local-sign/apksigner.jar"
+          printf '%s\n' 'Ara derleme dosyası. Kalıcı sertifika ile imzalanıp doğrulanmadan KURMAYIN.' > "$RUNNER_TEMP/mushaf-local-sign/README.txt"
+
+      - name: Yalnızca yerel imzalama girdisini sakla
+        if: ${{ failure() && steps.sign_apk.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mushaf-yoldasim-v21-local-signing-input-NOT-FOR-INSTALL
+          path: ${{ runner.temp }}/mushaf-local-sign/
+          if-no-files-found: error
+          retention-days: 3
 
       - name: APK dosyasını yayınla
         uses: actions/upload-artifact@v4
