@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -68,6 +69,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
   RecitationSession? _session;
   RecitationResult? _result;
   int _v = -1, _w = -1;
+  Timer? _takipZamanlayici;
 
   @override
   void initState() {
@@ -120,15 +122,19 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
       _session?.dispose();
       final session = Recitation.createSession(range: range);
       _session = session;
-      session.onRangeWord = (v, w) {
-        if (mounted && _recording) setState(() { _v = v; _w = w; });
-      };
       await session.startLive();
       if (!mounted) return;
       if (!session.isLive.value) {
         throw StateError(session.lastError.value.isEmpty ? 'Mikrofon açılamadı.' : session.lastError.value);
       }
       setState(() => _recording = true);
+      _takipZamanlayici?.cancel();
+      _takipZamanlayici = Timer.periodic(const Duration(milliseconds: 250), (_) {
+        if (!mounted || !_recording || _session != session) return;
+        final v = session.currentVerseIdx.value;
+        final w = session.currentWordIdx.value;
+        if (v != _v || w != _w) setState(() { _v = v; _w = w; });
+      });
     } catch (e) {
       if (mounted) setState(() => _hata = 'Ders başlatılamadı. Mikrofon iznini ve cihaz belleğini kontrol edin.\n$e');
     } finally {
@@ -139,6 +145,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
   Future<void> _bitir() async {
     if (!_recording || _busy) return;
     final session = _session;
+    _takipZamanlayici?.cancel();
     setState(() { _busy = true; _recording = false; });
     try {
       if (session == null) throw StateError('Kayıt oturumu bulunamadı.');
@@ -160,6 +167,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
 
   @override
   void dispose() {
+    _takipZamanlayici?.cancel();
     _session?.dispose();
     Recitation.reset();
     super.dispose();
