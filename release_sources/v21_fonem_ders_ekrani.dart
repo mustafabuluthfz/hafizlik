@@ -52,6 +52,23 @@ String fonemHataAdi(RecitationError e) {
   return 'Harf / telaffuz farkı';
 }
 
+// Conservative guard: a literal consonant absent from the displayed word
+// cannot safely be attributed to that word. Leave such results ungraded.
+bool fonemKelimeUyumlu(String word, String? expected) {
+  if (expected == null || expected.isEmpty) return true;
+  String letters(String s) => s
+      .replaceAll(RegExp('[أإآٱ]'), 'ا')
+      .replaceAll('ى', 'ي')
+      .replaceAll('ؤ', 'و')
+      .replaceAll('ئ', 'ي')
+      .replaceAll(RegExp(r'[^\u0621-\u063A\u0641-\u064A]'), '');
+  final ref = letters(expected);
+  final target = letters(word);
+  // Only check simple literal consonants; multi-symbol and contextual
+  // tajweed phonemes require the engine's own reference mapping.
+  return ref.length != 1 || 'اويهةء'.contains(ref) || target.contains(ref);
+}
+
 class FonemDersEkrani extends StatefulWidget {
   const FonemDersEkrani({super.key});
   @override
@@ -82,6 +99,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
   final _canliHata = <(int, int), TasmeeWordMistake>{};
   final _sonHata = <(int, int), List<RecitationError>>{};
   final _eslesen = <(int, int)>{};
+  final _belirsiz = <(int, int)>{};
 
   @override
   void initState() {
@@ -123,7 +141,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
 
   Future<void> _baslat() async {
     if (_busy || _recording || _ayetler.isEmpty) return;
-    setState(() { _busy = true; _hata = null; _result = null; _range = null; _canli.clear(); _canliHata.clear(); _sonHata.clear(); _eslesen.clear(); _v = -1; _w = -1; });
+    setState(() { _busy = true; _hata = null; _result = null; _range = null; _canli.clear(); _canliHata.clear(); _sonHata.clear(); _eslesen.clear(); _belirsiz.clear(); _v = -1; _w = -1; });
     try {
       await _motorHazirla();
       if (!mounted) return;
@@ -140,6 +158,12 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
         if (v < 0 || v >= range.verses.length || w < 0 ||
             w >= range.verses[v].uthmaniWords.length) return;
         setState(() {
+          if (kind == TasmeeErrorKind.normal && mistake != null &&
+              !fonemKelimeUyumlu(range.verses[v].uthmaniWords[w], mistake.expectedSymbol)) {
+            _canli.remove((v, w));
+            _canliHata.remove((v, w));
+            return;
+          }
           _canli[(v, w)] = kind;
           if (mistake == null) {
             _canliHata.remove((v, w));
@@ -180,7 +204,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
       final sonuc = session.result.value;
       setState(() {
         _result = sonuc;
-        _eslesen.clear();
+        _eslesen.clear(); _belirsiz.clear();
         _sonHata.clear();
         if (sonuc != null && sonuc.hasMatch && _range != null) {
           for (final span in sonuc.matchedWordSpans) {
@@ -192,6 +216,10 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
               (a) => a.verseKey == '${e.suraIdx}:${e.ayaIdx}');
             final w = e.wordIdx!;
             if (v < 0 || w < 0 || w >= _range!.verses[v].uthmaniWords.length) continue;
+            if (e.errorType == 'normal' && !fonemKelimeUyumlu(_range!.verses[v].uthmaniWords[w], e.expectedPh)) {
+              _belirsiz.add((v, w));
+              continue;
+            }
             (_sonHata[(v, w)] ??= []).add(e);
           }
         }
@@ -226,6 +254,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
       if (errors.any((e) => e.errorType == 'tashkeel')) return TasmeeErrorKind.tashkeel;
       return TasmeeErrorKind.tajweed;
     }
+    if (_belirsiz.contains(key)) return null;
     return _eslesen.contains(key) ? TasmeeErrorKind.correct : null;
   }
 
@@ -391,7 +420,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
   }
 
   Widget _sonucGoster(RecitationResult r) {
-    final errors = r.errors.where((e) => !e.isWordRepeat).toList();
+    final errors = _sonHata.values.expand((items) => items).toList();
     final hareke = errors.where((e) => e.errorType == 'tashkeel').length;
     final tecvid = errors.where((e) => e.errorType == 'tajweed').length;
     final harf = errors.length - hareke - tecvid;
@@ -404,7 +433,9 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
         Chip(label: Text('Tecvid: $tecvid')),
         Chip(label: Text('Harf: $harf')),
       ]),
-      if (errors.isEmpty)
+      if (_belirsiz.isNotEmpty)
+        Text('${_belirsiz.length} kelimede ses eşleştirmesi belirsiz; hata olarak sayılmadı.'),
+      if (errors.isEmpty && _belirsiz.isEmpty)
         const Text('Model, eşleştirebildiği okumada belirgin fark bulmadı. Bu, bütün tecvid kurallarının doğrulandığı anlamına gelmez.'),
       for (final e in errors)
         Card(child: Padding(
@@ -457,7 +488,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
                       DropdownMenuItem(value: i, child: Text('Sûre ${_ayetler[i].sure}, ayet ${_ayetler[i].numara}')),
                   ],
                   onChanged: _busy || _recording ? null : (i) {
-                    if (i != null) setState(() { _secili = i; _result = null; _range = null; _canli.clear(); _canliHata.clear(); _sonHata.clear(); _eslesen.clear(); _hata = null; });
+                    if (i != null) setState(() { _secili = i; _result = null; _range = null; _canli.clear(); _canliHata.clear(); _sonHata.clear(); _eslesen.clear(); _belirsiz.clear(); _hata = null; });
                   },
                 ),
               const SizedBox(height: 8),
