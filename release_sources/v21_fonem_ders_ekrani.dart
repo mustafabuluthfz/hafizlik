@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../hafizlik/bugunku_sayfa.dart';
+import '../ortak/ilerleme_depo.dart';
+import '../hafizlik/hafizlik_sira.dart';
 import '../hafizlik/quran_veri.dart';
 import '../ortak/mushaf.dart';
 import 'ders_ekrani.dart';
@@ -91,6 +93,8 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
   // completed review, even when the memorization option stays enabled.
   bool get _metinGizli => _ezberModu && (_recording || _busy);
   bool _engineReady = false;
+  bool _dersKaydedildi = false;
+  DateTime? _dersTarihi;
   String? _hata;
   RecitationSession? _session;
   RecitationResult? _result;
@@ -111,10 +115,11 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
 
   Future<void> _sayfaYukle() async {
     try {
+      final tarih = DateTime.now();
       final sayfa = await bugunkuSayfaNo();
       final ayetler = await QuranVeri.sayfa(sayfa);
       if (!mounted) return;
-      setState(() { _sayfa = sayfa; _ayetler = ayetler; });
+      setState(() { _sayfa = sayfa; _ayetler = ayetler; _dersTarihi = tarih; });
     } catch (_) {
       if (mounted) setState(() => _hata = 'Ders sayfası yüklenemedi.');
     }
@@ -231,6 +236,22 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
           _hata = 'Okuma güvenilir biçimde eşleştirilemedi. Sessiz bir ortamda yeniden deneyin.';
         }
       });
+      final range = _range;
+      final tarih = _dersTarihi;
+      if (_ezberModu && _secili == -1 && !_dersKaydedildi &&
+          sonuc != null && sonuc.hasMatch && sonuc.errors.isEmpty &&
+          _belirsiz.isEmpty && range != null && tarih != null &&
+          range.verses.length == _ayetler.length && _ayetler.isNotEmpty &&
+          IlerlemeDepo.gunAnahtari(tarih) == IlerlemeDepo.gunAnahtari(DateTime.now()) &&
+          _sayfa == await bugunkuSayfaNo() &&
+          List.generate(range.verses.length, (v) => v).every((v) =>
+            range.verses[v].verseKey == '${_ayetler[v].sure}:${_ayetler[v].numara}' &&
+            range.verses[v].uthmaniWords.isNotEmpty &&
+            List.generate(range.verses[v].uthmaniWords.length, (w) => w)
+              .every((w) => _eslesen.contains((v, w))))) {
+        await IlerlemeDepo.gunuIsaretle(tarih, true);
+        if (mounted) setState(() => _dersKaydedildi = true);
+      }
     } catch (e) {
       if (mounted) setState(() => _hata = 'Ses değerlendirmesi tamamlanamadı: $e');
     } finally {
@@ -542,6 +563,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
                   child: MushafSayfaGorunumu(ayetler: _hedef),
                 ),
               if (!_metinGizli && _result != null && _result!.hasMatch) _sonucGoster(_result!),
+              if (!_metinGizli && _dersKaydedildi) const ListTile(leading: Icon(Icons.verified_rounded), title: Text('Bugünkü ders tamamlandı'), subtitle: Text('İlerlemen kaydedildi.')),
               const SizedBox(height: 12),
               if (!_busy && !_recording)
                 OutlinedButton(
