@@ -356,6 +356,72 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+      - name: Yerel imzalama için APK parçalarını oluştur
+        if: ${{ failure() && steps.sign_apk.outcome == 'failure' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/mushaf-local-sign"
+          sha256sum NOT-FOR-INSTALL.apk > apk.sha256
+          split -b 50M -d -a 3 NOT-FOR-INSTALL.apk apk-part-
+      - name: Yerel imzalama araçları ve kontrol toplamı
+        if: ${{ failure() && steps.sign_apk.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mushaf-local-sign-tools
+          path: |
+            ${{ runner.temp }}/mushaf-local-sign/apksigner.jar
+            ${{ runner.temp }}/mushaf-local-sign/apk.sha256
+          retention-days: 3
+      - name: APK imzalama girdisi parça 0
+        if: ${{ failure() && steps.sign_apk.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mushaf-local-part-000
+          path: ${{ runner.temp }}/mushaf-local-sign/apk-part-000
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: APK imzalama girdisi parça 1
+        if: ${{ failure() && steps.sign_apk.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mushaf-local-part-001
+          path: ${{ runner.temp }}/mushaf-local-sign/apk-part-001
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: APK imzalama girdisi parça 2
+        if: ${{ failure() && steps.sign_apk.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mushaf-local-part-002
+          path: ${{ runner.temp }}/mushaf-local-sign/apk-part-002
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: APK imzalama girdisi parça 3
+        if: ${{ failure() && steps.sign_apk.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mushaf-local-part-003
+          path: ${{ runner.temp }}/mushaf-local-sign/apk-part-003
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: APK imzalama girdisi parça 4
+        if: ${{ failure() && steps.sign_apk.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mushaf-local-part-004
+          path: ${{ runner.temp }}/mushaf-local-sign/apk-part-004
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: APK imzalama girdisi parça 5
+        if: ${{ failure() && steps.sign_apk.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mushaf-local-part-005
+          path: ${{ runner.temp }}/mushaf-local-sign/apk-part-005
+          if-no-files-found: ignore
+          retention-days: 3
+
       - name: APK dosyasını yayınla
         uses: actions/upload-artifact@v4
         with:
