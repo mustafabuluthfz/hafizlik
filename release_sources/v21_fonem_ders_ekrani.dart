@@ -94,6 +94,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
   bool get _metinGizli => _ezberModu && (_recording || _busy);
   bool _engineReady = false;
   bool _dersKaydedildi = false;
+  int? _sonrakiSayfa;
   DateTime? _dersTarihi;
   String? _hata;
   RecitationSession? _session;
@@ -250,7 +251,14 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
             List.generate(range.verses[v].uthmaniWords.length, (w) => w)
               .every((w) => _eslesen.contains((v, w))))) {
         await IlerlemeDepo.gunuIsaretle(tarih, true);
-        if (mounted) setState(() => _dersKaydedildi = true);
+        if (mounted) {
+          setState(() => _dersKaydedildi = true);
+          final index = HafizlikSira.sira.indexOf(_sayfa!);
+          if (index >= 0) {
+            final sonraki = HafizlikSira.sira[(index + 1) % HafizlikSira.dongu];
+            setState(() => _sonrakiSayfa = sonraki);
+          }
+        }
       }
     } catch (e) {
       if (mounted) setState(() => _hata = 'Ses değerlendirmesi tamamlanamadı: $e');
@@ -563,7 +571,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
                   child: MushafSayfaGorunumu(ayetler: _hedef),
                 ),
               if (!_metinGizli && _result != null && _result!.hasMatch) _sonucGoster(_result!),
-              if (!_metinGizli && _dersKaydedildi) const ListTile(leading: Icon(Icons.verified_rounded), title: Text('Bugünkü ders tamamlandı'), subtitle: Text('İlerlemen kaydedildi.')),
+              if (!_metinGizli && _dersKaydedildi) ListTile(leading: const Icon(Icons.verified_rounded), title: const Text('Bugünkü ders tamamlandı'), subtitle: Text(_sonrakiSayfa == null ? 'İlerlemen kaydedildi.' : 'İlerlemen kaydedildi. Sıradaki ders: sayfa $_sonrakiSayfa.')),
               const SizedBox(height: 12),
               if (!_busy && !_recording)
                 OutlinedButton(
