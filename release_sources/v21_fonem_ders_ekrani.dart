@@ -431,8 +431,27 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
       ]),
       if (_belirsiz.isNotEmpty)
         Text('${_belirsiz.length} kelimede ses eşleştirmesi belirsiz; hata olarak sayılmadı.'),
-      if (errors.isEmpty && _belirsiz.isEmpty)
-        const Text('Model, eşleştirebildiği okumada belirgin fark bulmadı. Bu, bütün tecvid kurallarının doğrulandığı anlamına gelmez.'),
+      if (_range != null) ...[
+        Builder(builder: (context) {
+          final range = _range!;
+          final total = range.verses.fold<int>(0, (n, v) => n + v.uthmaniWords.length);
+          var covered = 0;
+          for (var v = 0; v < range.verses.length; v++) {
+            for (var w = 0; w < range.verses[v].uthmaniWords.length; w++) {
+              if (_eslesen.contains((v, w))) covered++;
+            }
+          }
+          final full = total > 0 && covered == total;
+          final clean = full && r.errors.isEmpty && _belirsiz.isEmpty;
+          return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            LinearProgressIndicator(value: total == 0 ? 0.0 : covered / total),
+            const SizedBox(height: 8),
+            Text('Eşleşen kelime: $covered / $total'),
+            Text(clean ? 'Model tüm hedef kelimeleri eşleştirdi ve belirgin fark bulmadı.'
+              : 'Okuma eksik, hatalı veya belirsiz; ders otomatik tamamlanamaz.'),
+          ]);
+        }),
+      ],
       for (final e in errors)
         Card(child: Padding(
           padding: const EdgeInsets.all(12),
