@@ -20,6 +20,8 @@ import 'fonem_motoru/core/services/tasmee_reference_store.dart';
 String fonemHarekeAdi(String? s) {
   if (s == null || s.isEmpty) return 'Algılanmadı';
   final names = <String>[
+    if (s.contains('\u0651')) 'Şedde',
+    if (s.contains('\u0652')) 'Sükûn',
     if (s.contains('\u064e')) 'Üstün',
     if (s.contains('\u0650')) 'Esre',
     if (s.contains('\u064f')) 'Ötre',
@@ -425,9 +427,9 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
       Text('Ders değerlendirmesi', style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 8),
       Wrap(spacing: 8, runSpacing: 6, children: [
-        Chip(label: Text('Hareke: $hareke')),
-        Chip(label: Text('Tecvid: $tecvid')),
-        Chip(label: Text('Harf: $harf')),
+        Chip(avatar: const Icon(Icons.spellcheck, size: 18), label: Text('Hareke: $hareke')),
+        Chip(avatar: const Icon(Icons.graphic_eq, size: 18), label: Text('Tecvid: $tecvid')),
+        Chip(avatar: const Icon(Icons.translate, size: 18), label: Text('Harf: $harf')),
       ]),
       if (_belirsiz.isNotEmpty)
         Text('${_belirsiz.length} kelimede ses eşleştirmesi belirsiz; hata olarak sayılmadı.'),
