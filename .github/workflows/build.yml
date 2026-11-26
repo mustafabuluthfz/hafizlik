@@ -148,6 +148,19 @@ jobs:
           test -f tools/android_overlay.py
           echo "Proje hazır ve düzeltmeler uygulandı."
 
+      - name: Güncel birleştirilmiş kaynakları inceleme için sakla
+        uses: actions/upload-artifact@v4
+        with:
+          name: mushaf-v25-merged-source
+          path: |
+            lib/
+            test/
+            tools/
+            android_overlay/
+            pubspec.yaml
+          retention-days: 3
+          if-no-files-found: error
+
       - name: Java 17 kur
         uses: actions/setup-java@v4
         with:
