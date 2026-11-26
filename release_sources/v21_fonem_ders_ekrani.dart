@@ -259,10 +259,10 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
   }
 
   Color _renk(TasmeeErrorKind? kind) => switch (kind) {
-    TasmeeErrorKind.correct => const Color(0xFF15803D),
-    TasmeeErrorKind.normal => const Color(0xFFB91C1C),
-    TasmeeErrorKind.tashkeel => const Color(0xFFC2410C),
-    TasmeeErrorKind.tajweed => const Color(0xFF7E22CE),
+    TasmeeErrorKind.correct => const Color(0xFF16A34A),
+    TasmeeErrorKind.normal => const Color(0xFFDC2626),
+    TasmeeErrorKind.tashkeel => const Color(0xFFEA580C),
+    TasmeeErrorKind.tajweed => const Color(0xFF9333EA),
     null => Theme.of(context).colorScheme.onSurface,
   };
 
@@ -283,12 +283,8 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
             Icon(Icons.visibility_off_outlined, size: 56,
               color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 14),
-            Text('EZBER MODU', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(_recording
-              ? 'Sayfa gizlendi. Ezberden okuyun. Dersi bitirdiğinizde renkli sonuçlar açılacak.'
-              : 'Sayfa gizli. İşlem tamamlandığında sonuçlar gösterilecek.',
-              textAlign: TextAlign.center),
+            if (_recording) const Icon(Icons.mic_rounded, size: 32, color: Color(0xFF0D9488)),
+            if (_busy) const CircularProgressIndicator(),
           ],
         ),
       ),
@@ -472,13 +468,13 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
         body: _sayfa == null && _hata == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(padding: const EdgeInsets.all(16), children: [
-              Text('Hareke ve Tecvid Analizi', style: Theme.of(context).textTheme.titleLarge),
+              if (!_metinGizli) Text('Hareke ve Tecvid Analizi', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 8),
-              const Text('Üstün, esre, ötre, şedde ve modelin desteklediği tecvid özellikleri, sesin fonemleri üzerinden incelenir. Ses cihazda işlenir.'),
+              if (!_metinGizli) const Text('Üstün, esre, ötre, şedde ve modelin desteklediği tecvid özellikleri, sesin fonemleri üzerinden incelenir. Ses cihazda işlenir.'),
               const SizedBox(height: 8),
-              const Text('Hafs rivayeti esas alınır. Otomatik değerlendirme yanılabilir; özellikle vakıf, med seçenekleri ve çocuk okuyuşlarında bir Kur’an hocasının değerlendirmesinin yerini tutmaz.'),
+              if (!_metinGizli) const Text('Hafs rivayeti esas alınır. Otomatik değerlendirme yanılabilir; özellikle vakıf, med seçenekleri ve çocuk okuyuşlarında bir Kur’an hocasının değerlendirmesinin yerini tutmaz.'),
               const SizedBox(height: 12),
-              if (_ayetler.isNotEmpty)
+              if (!_metinGizli && _ayetler.isNotEmpty)
                 DropdownButtonFormField<int>(
                   value: _secili,
                   decoration: const InputDecoration(labelText: 'Ders kapsamı'),
@@ -492,7 +488,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
                   },
                 ),
               const SizedBox(height: 8),
-              if (_ayetler.isNotEmpty)
+              if (!_metinGizli && _ayetler.isNotEmpty)
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   secondary: Icon(_ezberModu ? Icons.visibility_off_outlined : Icons.visibility_outlined),
@@ -504,12 +500,12 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
                   onChanged: _busy || _recording ? null : (v) => setState(() => _ezberModu = v),
                 ),
               const SizedBox(height: 12),
-              if (_busy) ...[
+              if (_busy && !_metinGizli) ...[
                 const LinearProgressIndicator(),
                 const SizedBox(height: 8),
                 const Text('Model hazırlanıyor veya ses değerlendiriliyor…'),
               ],
-              if (_recording) ...[
+              if (_recording && !_ezberModu) ...[
                 Text(_ezberModu ? 'Ezberden okuyun. Ders kaydediliyor.' : 'Okuyun. Ders kaydediliyor.'),
                 if (_v >= 0 && _v < _hedef.length)
                   Text('Takip: Sûre ${_hedef[_v].sure}, ayet ${_hedef[_v].numara} · Kelime ${_w + 1}'),
@@ -538,13 +534,14 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
                   child: const Text('Temel kelime kontrolü'),
                 ),
               const SizedBox(height: 4),
-              const Text('Fonem motoru: Quran-Lab Zipformer v3.1 (NPL-1.2). Bu özellik ücretsiz ve reklamsızdır.', style: TextStyle(fontSize: 11)),
+
             ]),
         bottomNavigationBar: SafeArea(
           minimum: const EdgeInsets.all(16),
           child: FilledButton.icon(
             onPressed: _busy || _ayetler.isEmpty ? null : (_recording ? _bitir : _baslat),
-            icon: Icon(_recording ? Icons.stop_rounded : Icons.mic_rounded),
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(56), backgroundColor: _recording ? const Color(0xFFB91C1C) : const Color(0xFF0F766E), foregroundColor: Colors.white),
+            icon: Icon(_recording ? Icons.stop_circle_rounded : Icons.mic_rounded),
             label: Text(_recording ? 'Dersi bitir' : 'Ders Dinlet'),
           ),
         ),
