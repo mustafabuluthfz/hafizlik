@@ -95,6 +95,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
   bool _engineReady = false;
   bool _dersKaydedildi = false;
   int? _sonrakiSayfa;
+  bool _ekCalisma = false;
   DateTime? _dersTarihi;
   String? _hata;
   RecitationSession? _session;
@@ -239,7 +240,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
       });
       final range = _range;
       final tarih = _dersTarihi;
-      if (_ezberModu && _secili == -1 && !_dersKaydedildi &&
+      if (!_ekCalisma && _ezberModu && _secili == -1 && !_dersKaydedildi &&
           sonuc != null && sonuc.hasMatch && sonuc.errors.isEmpty &&
           _belirsiz.isEmpty && range != null && tarih != null &&
           range.verses.length == _ayetler.length && _ayetler.isNotEmpty &&
@@ -256,7 +257,21 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
           final index = HafizlikSira.sira.indexOf(_sayfa!);
           if (index >= 0) {
             final sonraki = HafizlikSira.sira[(index + 1) % HafizlikSira.dongu];
-            setState(() => _sonrakiSayfa = sonraki);
+            final ayetler = await QuranVeri.sayfa(sonraki);
+            if (mounted && ayetler.isNotEmpty) {
+              setState(() {
+                _sonrakiSayfa = sonraki;
+                _sayfa = sonraki;
+                _ayetler = ayetler;
+                _ekCalisma = true;
+                _secili = -1;
+                _result = null;
+                _range = null;
+                _eslesen.clear();
+                _belirsiz.clear();
+                _sonHata.clear();
+              });
+            }
           }
         }
       }
@@ -571,7 +586,7 @@ class _FonemDersEkraniState extends State<FonemDersEkrani> {
                   child: MushafSayfaGorunumu(ayetler: _hedef),
                 ),
               if (!_metinGizli && _result != null && _result!.hasMatch) _sonucGoster(_result!),
-              if (!_metinGizli && _dersKaydedildi) ListTile(leading: const Icon(Icons.verified_rounded), title: const Text('Bugünkü ders tamamlandı'), subtitle: Text(_sonrakiSayfa == null ? 'İlerlemen kaydedildi.' : 'İlerlemen kaydedildi. Sıradaki ders: sayfa $_sonrakiSayfa.')),
+              if (!_metinGizli && _dersKaydedildi) ListTile(leading: const Icon(Icons.verified_rounded), title: const Text('Bugünkü ders tamamlandı'), subtitle: Text(_sonrakiSayfa == null ? 'İlerlemen kaydedildi.' : 'İlerlemen kaydedildi. Sıradaki sayfa $_sonrakiSayfa açıldı. Ek çalışma; gelecek günün kaydı değişmez.')),
               const SizedBox(height: 12),
               if (!_busy && !_recording)
                 OutlinedButton(
