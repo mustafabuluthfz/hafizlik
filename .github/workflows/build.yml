@@ -144,6 +144,42 @@ jobs:
           sed -i 's/record: \^5\.1\.2/record: ^6.2.1/' pubspec.yaml
           grep -q 'record: ^6.2.1' pubspec.yaml
 
+          # V25 accessible shared theme and native countdown widgets.
+          python3 <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          p = Path('lib/ortak/tema.dart')
+          t = p.read_text()
+          t = t.replace('iconSize: 17, minimumSize: const Size(38, 38)', 'iconSize: 22, minimumSize: const Size(48, 48)')
+          t = t.replace('height: 61,', 'height: 72,').replace('dense: true,', 'dense: false,')
+          t = t.replace('Color(0xFFF2EBDD)', 'Color(0xFFF4F7F5)').replace('Color(0xFFFCF7ED)', 'Color(0xFFFFFFFF)')
+          p.write_text(t)
+          for name in ['vakit_widget', 'vakit_widget_genis', 'vakit_widget_kompakt']:
+              p = Path('android_overlay/res/layout/' + name + '.xml')
+              t = p.read_text()
+              assert '</LinearLayout>' in t
+              t = t.replace('</LinearLayout>', '    <Chronometer android:id="@+id/geri_sayim" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFEBD9A4" android:textSize="12sp" android:singleLine="true" />\n</LinearLayout>')
+              if name == 'vakit_widget_kompakt':
+                  t = t.replace('android:padding="16dp"', 'android:padding="8dp"')
+              elif name == 'vakit_widget_genis':
+                  t = t.replace('android:maxLines="3"', 'android:maxLines="4"')
+              ET.fromstring(t)
+              p.write_text(t)
+          p = Path('android_overlay/kotlin/VakitWidgetProvider.kt')
+          t = p.read_text().replace('it.first >= now - 60000L', 'it.first > now')
+          marker = '        views.setTextViewText(R.id.satirlar, summary)'
+          assert marker in t
+          t = t.replace(marker, marker + '''
+                  if (next != null && Build.VERSION.SDK_INT >= 24) {
+                      views.setViewVisibility(R.id.geri_sayim, android.view.View.VISIBLE)
+                      views.setChronometer(R.id.geri_sayim, android.os.SystemClock.elapsedRealtime() + (next.first - now), "Kalan %s", true)
+                      views.setChronometerCountDown(R.id.geri_sayim, true)
+                  } else {
+                      views.setViewVisibility(R.id.geri_sayim, android.view.View.GONE)
+                  }''')
+          p.write_text(t)
+          PY
+
           # V11 tasariminda renk tanimlari derleme uyumludur.
           test -f tools/android_overlay.py
           echo "Proje hazır ve düzeltmeler uygulandı."
