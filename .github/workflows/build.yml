@@ -192,7 +192,13 @@ jobs:
               t = t.replace('android:textSize="32sp"', f'android:textSize="{size}sp"')
               t = re.sub(r'android:maxLines="[34]"', f'android:maxLines="{lines}"', t)
               if name == 'vakit_widget_kompakt':
-                  t = t.replace('android:id="@+id/satirlar"', 'android:id="@+id/satirlar" android:visibility="gone"')
+                  root = ET.fromstring(t)
+                  ns = '{http://schemas.android.com/apk/res/android}'
+                  for node in root.iter():
+                      if node.get(ns + 'id') == '@+id/satirlar':
+                          node.set(ns + 'visibility', 'gone')
+                  ET.register_namespace('android', ns[1:-1])
+                  t = ET.tostring(root, encoding='unicode')
               if name == 'vakit_widget_genis':
                   t = t.replace('android:background="@drawable/widget_zemin"', f'android:background="{bg}"')
                   t = t.replace('android:textSize="12sp"', 'android:textSize="14sp"')
