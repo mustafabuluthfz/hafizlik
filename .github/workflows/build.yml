@@ -177,7 +177,26 @@ jobs:
                   } else {
                       views.setViewVisibility(R.id.geri_sayim, android.view.View.GONE)
                   }''')
+          t = t.replace('views.setTextViewText(R.id.satirlar, summary)', '''views.setTextViewText(R.id.satirlar, if (layoutId == R.layout.vakit_widget_kompakt) "" else summary)
+                  if (layoutId == R.layout.vakit_widget_genis) {
+                      views.setTextViewText(R.id.satirlar, todayRows.joinToString("\\n") { row -> (if (row.first == next?.first) "▶  " else "     ") + row.second + "     " + row.third })
+                  }''')
           p.write_text(t)
+          for name, padding, size, lines, bg in [('vakit_widget_kompakt', 10, 30, 1, '#103D33'), ('vakit_widget', 12, 24, 2, '#103D33'), ('vakit_widget_genis', 16, 34, 6, '#142C38')]:
+              p = Path('android_overlay/res/layout/' + name + '.xml')
+              t = p.read_text()
+              import re
+              t = re.sub(r'android:padding="\d+dp"', f'android:padding="{padding}dp"', t)
+              t = t.replace('android:gravity="center_vertical"', 'android:gravity="top"')
+              t = t.replace('android:textSize="32sp"', f'android:textSize="{size}sp"')
+              t = re.sub(r'android:maxLines="[34]"', f'android:maxLines="{lines}"', t)
+              if name == 'vakit_widget_kompakt':
+                  t = t.replace('android:id="@+id/satirlar"', 'android:id="@+id/satirlar" android:visibility="gone"')
+              if name == 'vakit_widget_genis':
+                  t = t.replace('android:background="@drawable/widget_zemin"', f'android:background="{bg}"')
+                  t = t.replace('android:textSize="12sp"', 'android:textSize="14sp"')
+              ET.fromstring(t)
+              p.write_text(t)
           PY
 
           # V11 tasariminda renk tanimlari derleme uyumludur.
