@@ -4,6 +4,11 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      sign_release:
+        description: 'Yalnızca özellikler doğrulandıktan sonra kalıcı imzala'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -215,6 +220,43 @@ jobs:
                       }
           ''' + marker)
           p.write_text(t)
+          # Keep ungraded words distinct from confirmed errors and allow their review.
+          p = Path('lib/ders/fonem_ders_ekrani.dart')
+          t = p.read_text()
+          t = t.replace('button: kind != null,', 'button: kind != null || _belirsiz.contains((v, w)),')
+          t = t.replace('onTap: kind == null ? null :', 'onTap: kind == null && !_belirsiz.contains((v, w)) ? null :')
+          t = t.replace('    if (kind == null) return;\n    final key = _range!.keyOfVerse(v);', '''    if (kind == null) {
+                if (_belirsiz.contains((v, w))) {
+                  showDialog<void>(context: context, builder: (ctx) => AlertDialog(
+                    title: const Text('Belirsiz eşleşme'),
+                    content: const Text('Bu kelime güvenilir biçimde eşleştirilemedi. Hata olarak sayılmadı; yeniden okuyun.'),
+                    actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Kapat'))],
+                  ));
+                }
+                return;
+              }
+              final key = _range!.keyOfVerse(v);''')
+          t = t.replace('final color = _renk(kind);', 'final color = _belirsiz.contains((v, w)) ? const Color(0xFF64748B) : _renk(kind);')
+          t = t.replace('color: kind == null ? null : color.withValues(alpha: .10),', 'color: kind == null && !_belirsiz.contains((v, w)) ? null : color.withValues(alpha: .10),')
+          t = t.replace("const DropdownMenuItem(value: -1, child: Text('Bugünkü sayfanın tamamı')),", "DropdownMenuItem(value: -1, child: Text(_ekCalisma ? 'Ek çalışma sayfasının tamamı' : 'Bugünkü sayfanın tamamı')),")
+          assert 'Belirsiz eşleşme' in t and 'Ek çalışma sayfasının tamamı' in t
+          p.write_text(t)
+          Path('test/v26_fonem_guard_test.dart').write_text(r"""
+          import 'package:flutter_test/flutter_test.dart';
+          import '../lib/ders/fonem_ders_ekrani.dart';
+          void main() {
+            test('Hareke adları gerçek işaretlerden okunur', () {
+              expect(fonemHarekeAdi('ب\u064e'), 'Üstün');
+              expect(fonemHarekeAdi('ب\u0650'), 'Esre');
+              expect(fonemHarekeAdi('ب\u064f'), 'Ötre');
+              expect(fonemHarekeAdi('ب\u0651'), 'Şedde');
+            });
+            test('İlgisiz ünsüz kesin hata olarak atanmaz', () {
+              expect(fonemKelimeUyumlu('بسم', 'ق'), isFalse);
+              expect(fonemKelimeUyumlu('بسم', 'ب'), isTrue);
+            });
+          }
+          """.strip() + '\n')
           p = Path('lib/ortak/tema.dart')
           t = p.read_text().replace('IconThemeData(size: 17,', 'IconThemeData(size: 22,').replace('fontSize: 19, fontWeight:', 'fontSize: 22, fontWeight:').replace('height: 72,', 'height: 80,')
           p.write_text(t)
@@ -338,11 +380,22 @@ jobs:
           flutter test test/v17_tasarim_sayfa_cevirme_test.dart
           flutter test test/v19_hoca_dinletisi_test.dart
           flutter test test/v20_ders_dinlet_test.dart
+          flutter test test/v26_fonem_guard_test.dart
 
       - name: APK derle
         run: flutter build apk --release
 
+      - name: Geliştirme APK çıktısını sakla (dağıtım için değil)
+        if: ${{ inputs.sign_release != true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: mushaf-development-NOT-FOR-INSTALL
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 3
+
       - name: Kalıcı uygulama anahtarı ile APK imzala ve doğrula
+        if: ${{ inputs.sign_release == true }}
         id: sign_apk
         shell: bash
         env:
@@ -463,6 +516,7 @@ jobs:
           retention-days: 3
 
       - name: APK dosyasını yayınla
+        if: ${{ inputs.sign_release == true && steps.sign_apk.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: mushaf-yoldasim-v25-ci-apk
