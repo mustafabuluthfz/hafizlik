@@ -132,18 +132,7 @@ jobs:
 
       - name: V11 dua ve ses testleri
         run: |
-          flutter test test/v11_dualar_ve_turkce_ses_test.dart
-          flutter test test/v13_turk_okuyucu_ve_tasarim_test.dart
-          flutter test test/v14_uygulama_test.dart
-          flutter test test/v15_meal_ve_sayfa_test.dart
-          flutter test test/v15_mushaf_gecis_test.dart
-          flutter test test/karsilastirma_test.dart
-          flutter test test/v16_sirali_dinlet_ve_okuyucu_test.dart
-          flutter test test/v16_kitap_sayfasi_test.dart
-          flutter test test/v17_tasarim_sayfa_cevirme_test.dart
-          flutter test test/v19_hoca_dinletisi_test.dart
-          flutter test test/v20_ders_dinlet_test.dart
-          flutter test test/v26_fonem_guard_test.dart
+          flutter test
 
       - name: APK derle
         run: flutter build apk --release
